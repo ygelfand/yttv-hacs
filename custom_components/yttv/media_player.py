@@ -79,7 +79,7 @@ class YttvMediaPlayer(CoordinatorEntity[YttvCoordinator], MediaPlayerEntity):
         self._attr_unique_id = f"{entry.entry_id}:{self._host}:{self._port}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{self._host}:{self._port}")},
-            name=self._device_name,
+            name=f"yttv {self._device_name}",
             manufacturer="Google",
             model="Chromecast",
             via_device=(DOMAIN, entry.entry_id),

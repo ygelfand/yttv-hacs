@@ -27,7 +27,7 @@ from .coordinator import YttvCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.MEDIA_PLAYER, Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.MEDIA_PLAYER, Platform.SENSOR, Platform.IMAGE]
 
 CAST_SCHEMA = vol.Schema(
     {
