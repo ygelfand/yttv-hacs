@@ -1,0 +1,34 @@
+cast:
+  name: Cast channel
+  description: Cast a channel by name to a yttv media_player device.
+  fields:
+    device:
+      name: Device
+      description: Target yttv media_player entity.
+      required: true
+      example: media_player.living_room_tv
+      selector:
+        entity:
+          integration: yttv
+          domain: media_player
+    channel:
+      name: Channel
+      description: Channel name (substring match against the bridge's channel cache).
+      required: true
+      example: ESPN
+      selector:
+        text:
+
+stop:
+  name: Stop playback
+  description: Stop playback on a yttv media_player device.
+  fields:
+    device:
+      name: Device
+      description: Target yttv media_player entity.
+      required: true
+      example: media_player.living_room_tv
+      selector:
+        entity:
+          integration: yttv
+          domain: media_player

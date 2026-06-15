@@ -1,0 +1,58 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to yttv-bridge",
+        "description": "Enter the URL where your yttv-bridge daemon is reachable.",
+        "data": {
+          "bridge_url": "Bridge URL"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Couldn't reach the bridge at that URL.",
+      "auth": "The bridge rejected the request (cookies likely need rotation)."
+    },
+    "abort": {
+      "already_configured": "This bridge URL is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "yttv-bridge options",
+        "description": "Per-channel sensors expose 'what's airing now' as HA state. Pinned channels are enabled by default; others are registered disabled and can be turned on individually in the entity registry.",
+        "data": {
+          "enable_sensors": "Enable per-channel sensors",
+          "pinned_channels": "Pinned channels (enabled by default)"
+        }
+      }
+    }
+  },
+  "services": {
+    "cast": {
+      "name": "Cast channel",
+      "description": "Cast a channel by name to a yttv media_player device.",
+      "fields": {
+        "device": {
+          "name": "Device",
+          "description": "Target yttv media_player entity."
+        },
+        "channel": {
+          "name": "Channel",
+          "description": "Channel name (substring match against the bridge's channel cache)."
+        }
+      }
+    },
+    "stop": {
+      "name": "Stop playback",
+      "description": "Stop playback on a yttv media_player device.",
+      "fields": {
+        "device": {
+          "name": "Device",
+          "description": "Target yttv media_player entity."
+        }
+      }
+    }
+  }
+}
