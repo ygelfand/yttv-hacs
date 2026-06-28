@@ -30,6 +30,12 @@ be flipped on individually in the entity registry.
 Prereq: a running [`yttv-bridge`](https://github.com/ygelfand/yttv-bridge)
 reachable from your HA instance.
 
+### Install with HACS:
+
+[![My Home Assistant](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ygelfand&repository=yttv-hacs&category=Integration)
+
+Click the badge to add this repo to HACS in one step, or add it manually:
+
 1. HACS → ⋮ → **Custom repositories** → add
    `https://github.com/ygelfand/yttv-hacs`, category **Integration**.
 2. Install **YouTube TV (yttv-bridge)** from HACS.
