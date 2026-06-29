@@ -1,4 +1,4 @@
-"""Per-channel image entities exposing the current airing thumbnail."""
+"""Per-channel image entities: current-airing artwork and a live frame."""
 
 from __future__ import annotations
 
@@ -23,6 +23,8 @@ from .coordinator import YttvCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+_UID_KINDS = ("channel_image", "channel_live_image")
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -45,17 +47,15 @@ async def async_setup_entry(
     @callback
     def _sync_entities() -> None:
         pinned_slugs = _pinned_slugs()
-        new: list[YttvChannelImage] = []
+        new: list[ImageEntity] = []
         for ch in coordinator.channels():
             name = ch.get("name")
             if not name or name in known:
                 continue
             known.add(name)
-            new.append(
-                YttvChannelImage(
-                    hass, coordinator, entry, name, slugify(name) in pinned_slugs
-                )
-            )
+            pinned = slugify(name) in pinned_slugs
+            new.append(YttvChannelImage(hass, coordinator, entry, name, pinned))
+            new.append(YttvChannelLiveImage(hass, coordinator, entry, name, pinned))
         if new:
             async_add_entities(new)
 
@@ -67,12 +67,16 @@ async def async_setup_entry(
 def _sync_registry_disabled(
     hass: HomeAssistant, entry: ConfigEntry, pinned_slugs: set[str]
 ) -> None:
-    prefix = f"{entry.entry_id}:channel_image:"
+    prefixes = tuple(f"{entry.entry_id}:{kind}:" for kind in _UID_KINDS)
     registry = er.async_get(hass)
     for reg in er.async_entries_for_config_entry(registry, entry.entry_id):
-        if reg.domain != "image" or not (reg.unique_id or "").startswith(prefix):
+        if reg.domain != "image":
             continue
-        slug = reg.unique_id[len(prefix):]
+        uid = reg.unique_id or ""
+        prefix = next((p for p in prefixes if uid.startswith(p)), None)
+        if prefix is None:
+            continue
+        slug = uid[len(prefix):]
         desired = None if slug in pinned_slugs else er.RegistryEntryDisabler.INTEGRATION
         if reg.disabled_by == desired:
             continue
@@ -81,9 +85,11 @@ def _sync_registry_disabled(
         registry.async_update_entity(reg.entity_id, disabled_by=desired)
 
 
-class YttvChannelImage(CoordinatorEntity[YttvCoordinator], ImageEntity):
+class _YttvChannelImageBase(CoordinatorEntity[YttvCoordinator], ImageEntity):
     _attr_has_entity_name = False
     _attr_content_type = "image/jpeg"
+    _uid_kind = "channel_image"
+    _name_suffix = ""
 
     def __init__(
         self,
@@ -97,26 +103,13 @@ class YttvChannelImage(CoordinatorEntity[YttvCoordinator], ImageEntity):
         ImageEntity.__init__(self, hass)
         self._channel_name = channel_name
         slug = slugify(channel_name) or "unknown"
-        self._attr_unique_id = f"{entry.entry_id}:channel_image:{slug}"
-        self._attr_name = f"yttv {channel_name}"
+        self._attr_unique_id = f"{entry.entry_id}:{self._uid_kind}:{slug}"
+        self._attr_name = f"yttv {channel_name}{self._name_suffix}"
         self._attr_entity_registry_enabled_default = pinned
         self._refresh_url()
 
     def _resolve_url(self) -> str | None:
-        ch = self.coordinator.find_channel(self._channel_name)
-        if not ch:
-            return None
-        live = ch.get("live_thumbnail_url")
-        if live:
-            # Stable URL, but content updates ~every 5 min. A bucketed ?ts=
-            # rolls the URL once per window so _refresh_url re-fetches a fresh
-            # frame (and busts ytimg's edge cache) without per-poll churn.
-            bucket = int(dt_util.utcnow().timestamp() // LIVE_THUMB_TTL)
-            return f"{live}?ts={bucket}"
-        cur = ch.get("current_airing")
-        if isinstance(cur, dict) and cur.get("thumbnail_url"):
-            return cur["thumbnail_url"]
-        return ch.get("icon_url") or None
+        raise NotImplementedError
 
     def _refresh_url(self) -> bool:
         url = self._resolve_url()
@@ -137,3 +130,38 @@ class YttvChannelImage(CoordinatorEntity[YttvCoordinator], ImageEntity):
             super().available
             and self.coordinator.find_channel(self._channel_name) is not None
         )
+
+
+class YttvChannelImage(_YttvChannelImageBase):
+    """Static program artwork for the current airing (icon as fallback)."""
+
+    _uid_kind = "channel_image"
+
+    def _resolve_url(self) -> str | None:
+        ch = self.coordinator.find_channel(self._channel_name)
+        if not ch:
+            return None
+        cur = ch.get("current_airing")
+        if isinstance(cur, dict) and cur.get("thumbnail_url"):
+            return cur["thumbnail_url"]
+        return ch.get("icon_url") or None
+
+
+class YttvChannelLiveImage(_YttvChannelImageBase):
+    """A frame of the channel's live broadcast. No image when nothing is live."""
+
+    _uid_kind = "channel_live_image"
+    _name_suffix = " live"
+
+    def _resolve_url(self) -> str | None:
+        ch = self.coordinator.find_channel(self._channel_name)
+        if not ch:
+            return None
+        live = ch.get("live_thumbnail_url")
+        if not live:
+            return None
+        # Stable URL, but content updates ~every 5 min. A bucketed ?ts= rolls the
+        # URL once per window so _refresh_url re-fetches a fresh frame (and busts
+        # ytimg's edge cache) without per-poll churn.
+        bucket = int(dt_util.utcnow().timestamp() // LIVE_THUMB_TTL)
+        return f"{live}?ts={bucket}"
