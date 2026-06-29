@@ -17,6 +17,7 @@ from .const import (
     CONF_PINNED_CHANNELS,
     DEFAULT_ENABLE_SENSORS,
     DOMAIN,
+    LIVE_THUMB_TTL,
 )
 from .coordinator import YttvCoordinator
 
@@ -105,11 +106,16 @@ class YttvChannelImage(CoordinatorEntity[YttvCoordinator], ImageEntity):
         ch = self.coordinator.find_channel(self._channel_name)
         if not ch:
             return None
+        live = ch.get("live_thumbnail_url")
+        if live:
+            # Stable URL, but content updates ~every 5 min. A bucketed ?ts=
+            # rolls the URL once per window so _refresh_url re-fetches a fresh
+            # frame (and busts ytimg's edge cache) without per-poll churn.
+            bucket = int(dt_util.utcnow().timestamp() // LIVE_THUMB_TTL)
+            return f"{live}?ts={bucket}"
         cur = ch.get("current_airing")
-        if isinstance(cur, dict):
-            thumb = cur.get("thumbnail_url")
-            if thumb:
-                return thumb
+        if isinstance(cur, dict) and cur.get("thumbnail_url"):
+            return cur["thumbnail_url"]
         return ch.get("icon_url") or None
 
     def _refresh_url(self) -> bool:
