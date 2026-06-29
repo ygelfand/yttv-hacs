@@ -117,6 +117,9 @@ class _YttvChannelImageBase(CoordinatorEntity[YttvCoordinator], ImageEntity):
             return False
         self._attr_image_url = url
         self._attr_image_last_updated = dt_util.utcnow() if url else None
+        # HA's ImageEntity serves _cached_image and never clears it on a URL
+        # change; without this it keeps returning the first frame forever.
+        self._cached_image = None
         return True
 
     @callback
@@ -160,8 +163,5 @@ class YttvChannelLiveImage(_YttvChannelImageBase):
         live = ch.get("live_thumbnail_url")
         if not live:
             return None
-        # Stable URL, but content updates ~every 5 min. A bucketed ?ts= rolls the
-        # URL once per window so _refresh_url re-fetches a fresh frame (and busts
-        # ytimg's edge cache) without per-poll churn.
         bucket = int(dt_util.utcnow().timestamp() // LIVE_THUMB_TTL)
         return f"{live}?ts={bucket}"
