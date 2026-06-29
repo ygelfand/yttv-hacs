@@ -76,6 +76,38 @@ class BridgeClient:
         """POST /stop."""
         await self._post("/stop", self._target(device, host, port))
 
+    async def set_volume(
+        self,
+        *,
+        device: str | None = None,
+        host: str | None = None,
+        port: int | None = None,
+        level: float,
+    ) -> None:
+        """POST /volume — set device volume level (0..1)."""
+        await self._post("/volume", self._target(device, host, port) | {"level": level})
+
+    async def set_muted(
+        self,
+        *,
+        device: str | None = None,
+        host: str | None = None,
+        port: int | None = None,
+        muted: bool,
+    ) -> None:
+        """POST /mute."""
+        await self._post("/mute", self._target(device, host, port) | {"muted": muted})
+
+    async def play_pause(
+        self,
+        *,
+        device: str | None = None,
+        host: str | None = None,
+        port: int | None = None,
+    ) -> None:
+        """POST /playpause — toggle play/pause of the active media."""
+        await self._post("/playpause", self._target(device, host, port))
+
     @staticmethod
     def _target(
         device: str | None, host: str | None, port: int | None
