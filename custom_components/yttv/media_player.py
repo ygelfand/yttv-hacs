@@ -50,11 +50,8 @@ async def async_setup_entry(
 
 
 def _device_uid(dev: dict[str, Any]) -> str | None:
-    host = dev.get("host")
-    port = dev.get("port") or 8009
-    if not host:
-        return None
-    return f"{host}:{port}"
+    """Stable per-device key (mDNS UUID, survives IP changes)."""
+    return dev.get("uuid") or None
 
 
 class YttvMediaPlayer(CoordinatorEntity[YttvCoordinator], MediaPlayerEntity):
@@ -80,11 +77,13 @@ class YttvMediaPlayer(CoordinatorEntity[YttvCoordinator], MediaPlayerEntity):
         super().__init__(coordinator)
         self._entry_id = entry.entry_id
         self._device_name = device["name"]
+        self._uuid = device.get("uuid") or ""
         self._host = device["host"]
         self._port = device.get("port") or 8009
-        self._attr_unique_id = f"{entry.entry_id}:{self._host}:{self._port}"
+        uid = _device_uid(device)
+        self._attr_unique_id = f"{entry.entry_id}:{uid}"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"{self._host}:{self._port}")},
+            identifiers={(DOMAIN, uid)},
             name=f"yttv {self._device_name}",
             manufacturer="Google",
             model="Chromecast",
@@ -142,7 +141,7 @@ class YttvMediaPlayer(CoordinatorEntity[YttvCoordinator], MediaPlayerEntity):
 
     def _current_device(self) -> dict[str, Any] | None:
         for dev in self.coordinator.devices():
-            if dev.get("host") == self._host and (dev.get("port") or 8009) == self._port:
+            if dev.get("uuid") == self._uuid:
                 return dev
         return None
 
@@ -153,34 +152,40 @@ class YttvMediaPlayer(CoordinatorEntity[YttvCoordinator], MediaPlayerEntity):
         st = dev.get("status")
         return st if isinstance(st, dict) else None
 
+    def _target(self) -> tuple[str, int]:
+        """Current host/port, re-resolved so DHCP changes are honored."""
+        dev = self._current_device()
+        if dev:
+            self._host = dev["host"]
+            self._port = dev.get("port") or 8009
+        return self._host, self._port
+
     async def async_select_source(self, source: str) -> None:
+        host, port = self._target()
         try:
-            await self.coordinator.client.cast(
-                host=self._host, port=self._port, channel=source
-            )
+            await self.coordinator.client.cast(host=host, port=port, channel=source)
         except BridgeError as err:
             raise HomeAssistantError(f"yttv cast failed: {err}") from err
 
     async def async_media_stop(self) -> None:
+        host, port = self._target()
         try:
-            await self.coordinator.client.stop(host=self._host, port=self._port)
+            await self.coordinator.client.stop(host=host, port=port)
         except BridgeError as err:
             raise HomeAssistantError(f"yttv stop failed: {err}") from err
 
     async def async_set_volume_level(self, volume: float) -> None:
+        host, port = self._target()
         try:
-            await self.coordinator.client.set_volume(
-                host=self._host, port=self._port, level=volume
-            )
+            await self.coordinator.client.set_volume(host=host, port=port, level=volume)
         except BridgeError as err:
             raise HomeAssistantError(f"yttv volume failed: {err}") from err
         await self.coordinator.async_request_refresh()
 
     async def async_mute_volume(self, mute: bool) -> None:
+        host, port = self._target()
         try:
-            await self.coordinator.client.set_muted(
-                host=self._host, port=self._port, muted=mute
-            )
+            await self.coordinator.client.set_muted(host=host, port=port, muted=mute)
         except BridgeError as err:
             raise HomeAssistantError(f"yttv mute failed: {err}") from err
         await self.coordinator.async_request_refresh()
@@ -192,8 +197,9 @@ class YttvMediaPlayer(CoordinatorEntity[YttvCoordinator], MediaPlayerEntity):
         await self._play_pause()
 
     async def _play_pause(self) -> None:
+        host, port = self._target()
         try:
-            await self.coordinator.client.play_pause(host=self._host, port=self._port)
+            await self.coordinator.client.play_pause(host=host, port=port)
         except BridgeError as err:
             raise HomeAssistantError(f"yttv play/pause failed: {err}") from err
         await self.coordinator.async_request_refresh()

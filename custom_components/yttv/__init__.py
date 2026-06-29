@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
 
 from .api import BridgeClient, BridgeError
@@ -70,6 +71,18 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return unloaded
 
 
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, entry: ConfigEntry, device_entry: DeviceEntry
+) -> bool:
+    """Allow deleting a device from the UI once it's no longer present."""
+    coordinator: YttvCoordinator | None = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if coordinator is None:
+        return True
+    present = {d.get("uuid") for d in coordinator.devices() if d.get("uuid")}
+    ours = {ident for dom, ident in device_entry.identifiers if dom == DOMAIN}
+    return ours.isdisjoint(present)
+
+
 def _resolve_target(
     hass: HomeAssistant, entity_id: str
 ) -> tuple[YttvCoordinator, str, int]:
@@ -83,16 +96,12 @@ def _resolve_target(
     )
     if coordinator is None:
         raise HomeAssistantError(f"{entity_id}: bridge not loaded")
-    # unique_id format: "<entry_id>:<host>:<port>"
-    parts = (entry.unique_id or "").rsplit(":", 2)
-    if len(parts) != 3:
-        raise HomeAssistantError(f"{entity_id}: malformed unique_id")
-    _, host, port_s = parts
-    try:
-        port = int(port_s)
-    except ValueError as err:
-        raise HomeAssistantError(f"{entity_id}: bad port") from err
-    return coordinator, host, port
+    # unique_id is "<entry_id>:<device-uuid>"; resolve current host/port.
+    key = (entry.unique_id or "").removeprefix(f"{entry.config_entry_id}:")
+    for d in coordinator.devices():
+        if d.get("uuid") == key:
+            return coordinator, d["host"], d.get("port") or 8009
+    raise HomeAssistantError(f"{entity_id}: device not currently available")
 
 
 def _async_register_services(hass: HomeAssistant) -> None:
