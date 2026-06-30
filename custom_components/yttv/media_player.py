@@ -118,8 +118,16 @@ class YttvMediaPlayer(CoordinatorEntity[YttvCoordinator], MediaPlayerEntity):
         return self.coordinator.channel_names()
 
     @property
+    def app_name(self) -> str | None:
+        return (self._status() or {}).get("app") or None
+
+    @property
     def media_title(self) -> str | None:
         return (self._status() or {}).get("title") or None
+
+    @property
+    def media_artist(self) -> str | None:
+        return (self._status() or {}).get("subtitle") or None
 
     @property
     def media_content_type(self) -> str | None:

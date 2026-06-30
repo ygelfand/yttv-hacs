@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -50,3 +51,24 @@ class YttvCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if ch.get("name") == name:
                 return ch
         return None
+
+    async def consume_events(self) -> None:
+        """Subscribe to the bridge's SSE stream and push device updates live.
+
+        Runs until cancelled; reconnects with backoff. The periodic poll stays
+        as a fallback and the source of channel data.
+        """
+        while True:
+            try:
+                async for event in self.client.stream_events():
+                    if "devices" not in event:
+                        continue
+                    data = dict(self.data or {})
+                    data["devices"] = event["devices"]
+                    data.setdefault("channels", [])
+                    self.async_set_updated_data(data)
+            except asyncio.CancelledError:
+                raise
+            except Exception as err:  # noqa: BLE001 — keep the stream alive
+                _LOGGER.debug("yttv event stream dropped, retrying: %s", err)
+                await asyncio.sleep(5)

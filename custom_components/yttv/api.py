@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from collections.abc import AsyncIterator
 from typing import Any
 
 from aiohttp import ClientError, ClientResponseError, ClientSession, ClientTimeout
@@ -52,6 +54,31 @@ class BridgeClient:
             if err.status in (401, 403):
                 raise BridgeAuthError(str(err)) from err
             raise BridgeError(f"snapshot {err.status}") from err
+        except ClientError as err:
+            raise BridgeError(str(err)) from err
+
+    async def stream_events(self) -> AsyncIterator[dict[str, Any]]:
+        """Yield parsed objects from the bridge's /events SSE stream.
+
+        Long-lived: stays open until the connection drops or is cancelled.
+        Raises BridgeError on connection failure so the caller can reconnect.
+        """
+        timeout = ClientTimeout(total=None, sock_connect=10, sock_read=None)
+        try:
+            async with self._session.get(
+                f"{self._base}/events", timeout=timeout
+            ) as resp:
+                resp.raise_for_status()
+                async for raw in resp.content:
+                    line = raw.decode("utf-8").strip()
+                    if line.startswith("data:"):
+                        payload = line[5:].strip()
+                        if payload:
+                            yield json.loads(payload)
+        except ClientResponseError as err:
+            if err.status in (401, 403):
+                raise BridgeAuthError(str(err)) from err
+            raise BridgeError(f"events {err.status}") from err
         except ClientError as err:
             raise BridgeError(str(err)) from err
 
