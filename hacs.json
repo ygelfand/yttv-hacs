@@ -1,6 +1,7 @@
 {
-  "name": "YouTube TV (yttv-bridge)",
-  "render_readme": true,
+  "content_in_root": false,
+  "country": ["US"],
   "homeassistant": "2023.1.0",
-  "content_in_root": false
+  "name": "YouTube TV (yttv-bridge)",
+  "render_readme": true
 }
