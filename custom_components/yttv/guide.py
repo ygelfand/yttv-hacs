@@ -3,13 +3,24 @@ from __future__ import annotations
 import json
 from typing import Any
 
-VERSION = 1
+VERSION = 2
 BUDGET = 40000
+
+
+def airing(a: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "title": a.get("title") or "",
+        "subtitle": a.get("subtitle") or "",
+        "starts_at": a.get("starts_at") or "",
+        "ends_at": a.get("ends_at") or "",
+    }
 
 
 def channel(ch: dict[str, Any], pinned: set[str]) -> dict[str, Any]:
     cur = ch.get("current_airing")
     cur = cur if isinstance(cur, dict) else {}
+    upcoming = ch.get("next_airings")
+    upcoming = upcoming if isinstance(upcoming, list) else []
     name = ch.get("name") or ""
     return {
         "name": name,
@@ -21,6 +32,7 @@ def channel(ch: dict[str, Any], pinned: set[str]) -> dict[str, Any]:
         "ends_at": cur.get("ends_at") or "",
         "live": bool(cur.get("is_live")),
         "pinned": name in pinned,
+        "next": [airing(a) for a in upcoming if isinstance(a, dict)],
     }
 
 

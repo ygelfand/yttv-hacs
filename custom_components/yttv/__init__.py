@@ -161,7 +161,7 @@ def _tvs(hass: HomeAssistant, entry_id: str, coord: YttvCoordinator) -> list[dic
     out = []
     for dev in coord.devices():
         uid = _device_uid(dev)
-        if not uid:
+        if not uid or not dev.get("video"):
             continue
         entity = registry.async_get_entity_id("media_player", DOMAIN, f"{entry_id}:{uid}")
         if entity:
