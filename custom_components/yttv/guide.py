@@ -26,6 +26,7 @@ def channel(ch: dict[str, Any], pinned: set[str]) -> dict[str, Any]:
         "name": name,
         "icon": ch.get("icon_url") or "",
         "thumb": cur.get("thumbnail_url") or ch.get("live_thumbnail_url") or "",
+        "live_thumb": ch.get("live_thumbnail_url") or "",
         "title": cur.get("title") or "",
         "subtitle": cur.get("subtitle") or "",
         "starts_at": cur.get("starts_at") or "",

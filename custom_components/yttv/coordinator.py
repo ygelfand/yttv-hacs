@@ -66,7 +66,8 @@ class YttvCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     data = dict(self.data or {})
                     data["devices"] = event["devices"]
                     data.setdefault("channels", [])
-                    self.async_set_updated_data(data)
+                    self.data = data
+                    self.async_update_listeners()
             except asyncio.CancelledError:
                 raise
             except Exception as err:  # noqa: BLE001 — keep the stream alive

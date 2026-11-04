@@ -10,7 +10,7 @@ CONF_BRIDGE_URL = "bridge_url"
 
 DEFAULT_BRIDGE_URL = "http://localhost:8765"
 
-UPDATE_INTERVAL = timedelta(seconds=60)
+UPDATE_INTERVAL = timedelta(minutes=5)
 
 # Live thumbnails (ytimg *_live.jpg) refresh ~every 5 min (cache-control
 # max-age=300). Bucket a cache-busting ?ts= param to this cadence.
