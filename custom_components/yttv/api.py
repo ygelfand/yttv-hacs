@@ -88,10 +88,12 @@ class BridgeClient:
         device: str | None = None,
         host: str | None = None,
         port: int | None = None,
-        channel: str,
+        channel: str = "",
+        video_id: str = "",
     ) -> None:
         """POST /cast — bridge picks device by name or host:port."""
-        await self._post("/cast", self._target(device, host, port) | {"channel": channel})
+        what = {"video_id": video_id} if video_id else {"channel": channel}
+        await self._post("/cast", self._target(device, host, port) | what)
 
     async def stop(
         self,

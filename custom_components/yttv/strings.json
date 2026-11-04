@@ -41,6 +41,10 @@
         "channel": {
           "name": "Channel",
           "description": "Channel name (substring match against the bridge's channel cache)."
+        },
+        "video_id": {
+          "name": "Video ID",
+          "description": "The channel's live video id from the guide."
         }
       }
     },

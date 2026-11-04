@@ -22,6 +22,7 @@ SERVICE_GUIDE = "guide"
 
 ATTR_DEVICE = "device"
 ATTR_CHANNEL = "channel"
+ATTR_VIDEO_ID = "video_id"
 
 CONF_ENABLE_SENSORS = "enable_sensors"
 CONF_PINNED_CHANNELS = "pinned_channels"

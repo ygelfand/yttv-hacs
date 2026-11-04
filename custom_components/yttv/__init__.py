@@ -19,6 +19,7 @@ from .api import BridgeClient, BridgeError
 from .const import (
     ATTR_CHANNEL,
     ATTR_DEVICE,
+    ATTR_VIDEO_ID,
     CONF_BRIDGE_URL,
     CONF_PINNED_CHANNELS,
     DOMAIN,
@@ -34,11 +35,15 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.MEDIA_PLAYER, Platform.SENSOR, Platform.IMAGE]
 
-CAST_SCHEMA = vol.Schema(
-    {
-        vol.Required(ATTR_DEVICE): cv.entity_id,
-        vol.Required(ATTR_CHANNEL): cv.string,
-    }
+CAST_SCHEMA = vol.All(
+    vol.Schema(
+        {
+            vol.Required(ATTR_DEVICE): cv.entity_id,
+            vol.Optional(ATTR_CHANNEL): cv.string,
+            vol.Optional(ATTR_VIDEO_ID): cv.string,
+        }
+    ),
+    cv.has_at_least_one_key(ATTR_CHANNEL, ATTR_VIDEO_ID),
 )
 
 STOP_SCHEMA = vol.Schema({vol.Required(ATTR_DEVICE): cv.entity_id})
@@ -124,7 +129,10 @@ def _async_register_services(hass: HomeAssistant) -> None:
         coord, host, port = _resolve_target(hass, call.data[ATTR_DEVICE])
         try:
             await coord.client.cast(
-                host=host, port=port, channel=call.data[ATTR_CHANNEL]
+                host=host,
+                port=port,
+                channel=call.data.get(ATTR_CHANNEL, ""),
+                video_id=call.data.get(ATTR_VIDEO_ID, ""),
             )
         except BridgeError as err:
             raise HomeAssistantError(f"yttv cast failed: {err}") from err
