@@ -44,6 +44,16 @@
         }
       }
     },
+    "guide": {
+      "name": "Channel guide",
+      "description": "List channels with what is airing now, a page at a time, and the TVs the bridge knows.",
+      "fields": {
+        "start": {
+          "name": "Start",
+          "description": "Position to continue from, as returned in the previous page's next."
+        }
+      }
+    },
     "stop": {
       "name": "Stop playback",
       "description": "Stop playback on a yttv media_player device.",

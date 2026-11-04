@@ -8,7 +8,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -20,11 +20,15 @@ from .const import (
     ATTR_CHANNEL,
     ATTR_DEVICE,
     CONF_BRIDGE_URL,
+    CONF_PINNED_CHANNELS,
     DOMAIN,
     SERVICE_CAST,
+    SERVICE_GUIDE,
     SERVICE_STOP,
 )
 from .coordinator import YttvCoordinator
+from .guide import guide
+from .media_player import _device_uid
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,6 +42,8 @@ CAST_SCHEMA = vol.Schema(
 )
 
 STOP_SCHEMA = vol.Schema({vol.Required(ATTR_DEVICE): cv.entity_id})
+
+GUIDE_SCHEMA = vol.Schema({vol.Optional("start", default=0): vol.Coerce(int)})
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -73,6 +79,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not hass.data[DOMAIN]:
             hass.services.async_remove(DOMAIN, SERVICE_CAST)
             hass.services.async_remove(DOMAIN, SERVICE_STOP)
+            hass.services.async_remove(DOMAIN, SERVICE_GUIDE)
     return unloaded
 
 
@@ -129,5 +136,41 @@ def _async_register_services(hass: HomeAssistant) -> None:
         except BridgeError as err:
             raise HomeAssistantError(f"yttv stop failed: {err}") from err
 
+    async def _guide(call: ServiceCall) -> ServiceResponse:
+        loaded = list(hass.data.get(DOMAIN, {}).items())
+        if not loaded:
+            raise HomeAssistantError("yttv bridge not loaded")
+        entry_id, coord = loaded[0]
+        entry = hass.config_entries.async_get_entry(entry_id)
+        pinned = set((entry.options.get(CONF_PINNED_CHANNELS) if entry else None) or [])
+        return guide(coord.channels(), pinned, call.data["start"], _tvs(hass, entry_id, coord))
+
     hass.services.async_register(DOMAIN, SERVICE_CAST, _cast, schema=CAST_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_STOP, _stop, schema=STOP_SCHEMA)
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_GUIDE,
+        _guide,
+        schema=GUIDE_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
+
+
+def _tvs(hass: HomeAssistant, entry_id: str, coord: YttvCoordinator) -> list[dict[str, Any]]:
+    registry = async_get_entity_registry(hass)
+    out = []
+    for dev in coord.devices():
+        uid = _device_uid(dev)
+        if not uid:
+            continue
+        entity = registry.async_get_entity_id("media_player", DOMAIN, f"{entry_id}:{uid}")
+        if entity:
+            out.append(
+                {
+                    "entity_id": entity,
+                    "name": dev.get("name") or "",
+                    "uuid": dev.get("uuid") or "",
+                    "host": dev.get("host") or "",
+                }
+            )
+    return out

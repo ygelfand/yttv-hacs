@@ -18,6 +18,7 @@ LIVE_THUMB_TTL = 300
 
 SERVICE_CAST = "cast"
 SERVICE_STOP = "stop"
+SERVICE_GUIDE = "guide"
 
 ATTR_DEVICE = "device"
 ATTR_CHANNEL = "channel"
